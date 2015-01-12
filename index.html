@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+{% autoescape true %}
+<html lang="en">
+	<head>
+		<link type="text/css" rel="stylesheet" href="/stylesheets/main.css" />
+		<style>
+			.bomb{
+				background-color: white;
+				padding: 20px;
+				margin: 10px;
+			}
+		</style>
+	</head>
+	<body>
+		<script src="http://code.jquery.com/jquery.js"></script>
+
+		<div id="insertGame">
+			<div id="game">
+			</div>
+		</div>
+		<div>
+			<form>
+				<input id="size" type="text" name="size" value="3">
+				<input type="button"  value="play game" onclick="playGame()">
+			</form>
+			<p id="bomb_number"></p>
+			<p id="statement"></p>
+			<p id="win_number">win number: 0</p>
+		</div>
+		<script>
+			var count = 0;
+			var leftCount = 0;
+			var leftNotCount = 0;
+			var bomb_num = null;
+			var isBomb = null;
+			var win_number = 0;
+
+			function playGame(){
+				count = 0;
+				leftCount = 0;
+				leftNotCount = 0;
+				bomb_num = null;
+				isBomb = null;
+				var div  = document.getElementById("game");
+				var game_size = parseInt(document.getElementsByName("size")[0].value);
+				while (div.firstChild) {
+    					div.removeChild(div.firstChild);
+				}
+				play();
+			}
+
+			function play(){
+				var game_size = parseInt(document.getElementsByName("size")[0].value);
+				var bomb_arr = new Array(game_size);
+				count = 0;
+				leftCount = 0;
+				leftNotCount = 0;
+				bomb_num = new Array(game_size*game_size);
+				isBomb = new Array(game_size*game_size);
+				for (var i = 0; i<bomb_arr.length; i++){
+					bomb_arr[i] = new Array(game_size);
+				}
+				var bomb_number = document.getElementById("statement");
+				var gameStart = document.getElementById("game");
+
+				for (var row = 0; row < game_size; row++){
+					for (var col = 0; col < game_size; col ++){
+						var addButton = document.createElement("button");
+						addButton.id = "bomb" + (row * game_size + col + 1);
+						addButton.setAttribute("class","bomb");
+						game.appendChild(addButton);
+					}
+					var br = document.createElement('br');
+					game.appendChild(br);
+				}
+
+				
+				for (var bomb_row = 0; bomb_row < game_size; bomb_row++){
+					for(var bomb_col = 0; bomb_col < game_size; bomb_col++){
+						var r = Math.floor(Math.random() * 10) % 2 + 1;  // r = 1 is not bomb; r = 2 is bomb
+						var bomb = (bomb_col) * game_size + bomb_row + 1;
+						var x = document.getElementById("bomb" + bomb);
+						bomb_arr[bomb_row][bomb_col] = {is_b: r, num_b: 0};
+						if (r == 1){
+							x.setAttribute("onclick", "not_bomb(id)");
+							x.setAttribute("oncontextmenu", "guess_bomb(id);return false");
+						}
+						else{
+							x.setAttribute("onclick", "is_bomb(id)");
+							x.setAttribute("oncontextmenu", "guess_bomb(id);return false");
+							isBomb[bomb_col * game_size + bomb_row] = r;
+							count ++;
+						}
+						isBomb[bomb_col * game_size + bomb_row] = r;
+						
+					}
+				}
+
+				leftCount = count;
+				leftNotCount = game_size*game_size - leftCount;
+
+				// count the number of bomb near bomb_arr[bomb_row][bomb_col]
+				for (var bomb_row = 0; bomb_row < game_size; bomb_row++){
+					for(var bomb_col = 0; bomb_col < game_size; bomb_col++){
+						var count_b = 0;
+						if(bomb_row - 1>= 0 && bomb_col - 1 >= 0){
+							if( bomb_arr[bomb_row - 1][bomb_col - 1].is_b != 1){
+								count_b ++;
+							}
+						}
+						if(bomb_row - 1>= 0 && bomb_col >= 0){
+							if( bomb_arr[bomb_row - 1][bomb_col].is_b != 1){
+								count_b ++;
+							}
+						}
+						if(bomb_row - 1>= 0 && bomb_col + 1 < game_size){
+							if( bomb_arr[bomb_row - 1][bomb_col + 1].is_b != 1){
+								count_b ++;
+							}
+						}
+						if(bomb_row >= 0 && bomb_col - 1 >= 0){
+							if( bomb_arr[bomb_row][bomb_col - 1].is_b != 1){
+								count_b ++;
+							}
+						}
+						if(bomb_row >= 0 && bomb_col + 1 < game_size){
+							if( bomb_arr[bomb_row][bomb_col + 1].is_b != 1){
+								count_b ++;
+							}
+						}
+						if(bomb_row + 1 < game_size && bomb_col - 1 >= 0){
+							if( bomb_arr[bomb_row + 1][bomb_col - 1].is_b != 1){
+								count_b ++;
+							}
+						}
+						if(bomb_row + 1 < game_size && bomb_col >= 0){
+							if( bomb_arr[bomb_row + 1][bomb_col].is_b != 1){
+								count_b ++;
+							}
+						}
+						if(bomb_row+1 < game_size && bomb_col + 1 < game_size){
+							if( bomb_arr[bomb_row + 1][bomb_col + 1].is_b != 1){
+								count_b ++;
+							}
+						}
+						bomb_arr[bomb_row][bomb_col].num_b = count_b;
+						bomb_num[bomb_col * game_size + bomb_row] = count_b;
+					}
+				}
+				bomb_number.innerHTML = count + "BOMB!!!";
+			}
+
+			function not_bomb(id){
+				//window.alert("bombid: " + id + ", bomb_num[]:" +  bomb_num[id.charAt(4) - 1]);
+				var bomb = document.getElementById(id);
+				bomb.innerHTML = bomb_num[id.replace('bomb', '') - 1];
+				if (isBomb[id.replace('bomb', '')- 1] ==1){
+					leftNotCount --;
+				}
+				success();
+
+			}
+
+			function is_bomb(id){
+				var bomb = document.getElementById(id);
+				var s = document.getElementById("statement");
+				bomb.innerHTML = "X"
+				s.innerHTML = "You Fail";
+			}
+
+			function guess_bomb(id){
+				//window.alert("guess_bomb");
+				var bomb_id = document.getElementById(id);
+				bomb_id.setAttribute("style","background-color:red;padding:20px");
+				bomb_id.setAttribute("oncontextmenu","guess_not_bomb(id);return false;");
+				if (isBomb[id.replace('bomb', '') - 1] == 2){
+					leftCount --;
+				}
+				success();
+				return false;
+			}
+
+			function guess_not_bomb(id){
+				//window.alert("guess_not_bomb");
+				var bomb_id = document.getElementById(id);
+				bomb_id.removeAttribute("style");
+				bomb_id.setAttribute("oncontextmenu","guess_not_bomb(id)");
+				if (isBomb[id.charAt(4) - 1] == 2){
+					leftCount ++;
+				}
+				return false;
+			}
+
+			function success(){
+				if (leftCount + leftNotCount == 0){
+					var s = document.getElementById("statement");
+					var w = document.getElementById("win_number");
+					win_number ++;
+					w.innerHTML = "win number:" + win_number;
+					s.innerHTML = "You Win!!!";
+				}
+			}
+
+			
+
+		</script>
+	</body>
+</html>
+{% endautoescape %}
