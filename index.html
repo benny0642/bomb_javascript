@@ -9,6 +9,11 @@
 				padding: 20px;
 				margin: 10px;
 			}
+			.markBomb{
+				background-color: red;
+				padding: 20px;
+				margin: 10px;
+			}
 		</style>
 	</head>
 	<body>
@@ -21,188 +26,190 @@
 		<div>
 			<form>
 				<input id="size" type="text" name="size" value="3">
-				<input type="button"  value="play game" onclick="playGame()">
+				<input type="button"  value="play game" onclick="Game.restart()">
 			</form>
 			<p id="bomb_number"></p>
 			<p id="statement"></p>
 			<p id="win_number">win number: 0</p>
 		</div>
 		<script>
-			var count = 0;
-			var leftCount = 0;
-			var leftNotCount = 0;
-			var bomb_num = null;
-			var isBomb = null;
-			var win_number = 0;
+			var winNumber = 0;
+			var Game ={
+				init: function(){
+					Game.config = {
+						tar: $('#game'),
+						buttons: $('<button></button>'),
+						bomb_arr: new Array(),
+						bomb_num: new Array(),
+						guessBomb: 0,
+						openBomb: 0
+					};
+					var gameSize = $("#size").val();
 
-			function playGame(){
-				count = 0;
-				leftCount = 0;
-				leftNotCount = 0;
-				bomb_num = null;
-				isBomb = null;
-				var div  = document.getElementById("game");
-				var game_size = parseInt(document.getElementsByName("size")[0].value);
-				while (div.firstChild) {
-    					div.removeChild(div.firstChild);
-				}
-				play();
-			}
+					Game.setup(gameSize);
+				},
 
-			function play(){
-				var game_size = parseInt(document.getElementsByName("size")[0].value);
-				var bomb_arr = new Array(game_size);
-				count = 0;
-				leftCount = 0;
-				leftNotCount = 0;
-				bomb_num = new Array(game_size*game_size);
-				isBomb = new Array(game_size*game_size);
-				for (var i = 0; i<bomb_arr.length; i++){
-					bomb_arr[i] = new Array(game_size);
-				}
-				var bomb_number = document.getElementById("statement");
-				var gameStart = document.getElementById("game");
+				setup: function(gameSize){
+					Game.createBombs(gameSize);
+					Game.assignId();
+					Game.assignBomb();
+					Game.countBomb(gameSize);
+					Game.bombInit();
+				},
 
-				for (var row = 0; row < game_size; row++){
-					for (var col = 0; col < game_size; col ++){
-						var addButton = document.createElement("button");
-						addButton.id = "bomb" + (row * game_size + col + 1);
-						addButton.setAttribute("class","bomb");
-						game.appendChild(addButton);
-					}
-					var br = document.createElement('br');
-					game.appendChild(br);
-				}
+				createBombs: function(gameSize){
+					var scale = gameSize*gameSize;
+					Game.config.bomb_arr = new Array(scale);
+					Game.config.bomb_num = new Array(scale);
+					while(scale){
+						Game.config.tar.append("<button></button>");
+						if (scale % gameSize == 1){
+							Game.config.tar.append("<br />");
+						}
+						scale--;
+					};
+				},
 
-				
-				for (var bomb_row = 0; bomb_row < game_size; bomb_row++){
-					for(var bomb_col = 0; bomb_col < game_size; bomb_col++){
-						var r = Math.floor(Math.random() * 10) % 2 + 1;  // r = 1 is not bomb; r = 2 is bomb
-						var bomb = (bomb_col) * game_size + bomb_row + 1;
-						var x = document.getElementById("bomb" + bomb);
-						bomb_arr[bomb_row][bomb_col] = {is_b: r, num_b: 0};
-						if (r == 1){
-							x.setAttribute("onclick", "not_bomb(id)");
-							x.setAttribute("oncontextmenu", "guess_bomb(id);return false");
+				assignId: function(){
+					$('button').attr('id', function(i){
+						return "bomb" + i;
+					});
+				},
+
+				assignBomb: function(){
+					$('button').each(function(index){
+						var r = Math.floor(Math.random() * 10) % 3 + 1;  // r = 1 is  bomb; r = 2 is not bomb
+						var bomb = $(this);
+						if ( r == 1){
+							bomb.attr('name', "bombed");
+							Game.config.bomb_arr [index] = r;
+							Game.config.guessBomb++;
 						}
 						else{
-							x.setAttribute("onclick", "is_bomb(id)");
-							x.setAttribute("oncontextmenu", "guess_bomb(id);return false");
-							isBomb[bomb_col * game_size + bomb_row] = r;
-							count ++;
+							bomb.attr('name', "not-bomb");
+							Game.config.bomb_arr[index] = r;
+							Game.config.openBomb++;
 						}
-						isBomb[bomb_col * game_size + bomb_row] = r;
-						
+					});
+					$("#bomb_number").html("Bomb Number:" + Game.config.guessBomb);
+				},
+
+				countBomb: function(gameSize){
+					gameSize = parseInt(gameSize);
+					$('button').each(function(index){
+						var countNum = 0;
+						if ((index  - gameSize) >= 0){
+							if (Game.config.bomb_arr[index  - gameSize] == 1){
+								countNum++;
+							}
+						}
+						if ((index % gameSize) != 0){
+							if (Game.config.bomb_arr[index - 1] == 1){
+								countNum++;
+							}
+						}
+						if ((index % gameSize) != (gameSize - 1) ){
+							if(Game.config.bomb_arr[index + 1] == 1){
+								countNum++;
+							}
+						}
+						if ((index + gameSize) <= (gameSize*gameSize - 1)){
+							if (Game.config.bomb_arr[index + gameSize] == 1){
+								countNum++;
+							}
+						}
+						if ((index - gameSize) >= 0 && (index % gameSize ) != 0){
+							if(Game.config.bomb_arr[index -gameSize - 1] == 1){
+								countNum++;
+							}
+						}
+						if ((index - gameSize) >= 0 && (index % gameSize) != (gameSize - 1)){
+							if(Game.config.bomb_arr[index - gameSize + 1] == 1){
+								countNum++;
+							}
+						}
+						if ((index + gameSize) <= (gameSize*gameSize - 1) && (index % gameSize) != 0){
+							if (Game.config.bomb_arr[index + gameSize -1] == 1){
+								countNum++;
+							}
+						}
+						if ((index + gameSize) <= (gameSize*gameSize - 1) && (index % gameSize) != (gameSize - 1)){
+							if (Game.config.bomb_arr[index + gameSize +1] == 1){
+								countNum++;
+							}
+						}
+
+						Game.config.bomb_num[index] = countNum;
+					})
+				},
+
+				bombInit: function(){
+					$('button').each(function(){
+						Game.initialState(this);
+					})
+				},
+
+				initialState: function(elem){
+					$(elem).attr("class","bomb");
+					if ($(elem).attr("name")== "not-bomb"){
+						$(elem).click(function(){
+							Game.openState(elem);
+						})
 					}
-				}
-
-				leftCount = count;
-				leftNotCount = game_size*game_size - leftCount;
-
-				// count the number of bomb near bomb_arr[bomb_row][bomb_col]
-				for (var bomb_row = 0; bomb_row < game_size; bomb_row++){
-					for(var bomb_col = 0; bomb_col < game_size; bomb_col++){
-						var count_b = 0;
-						if(bomb_row - 1>= 0 && bomb_col - 1 >= 0){
-							if( bomb_arr[bomb_row - 1][bomb_col - 1].is_b != 1){
-								count_b ++;
-							}
-						}
-						if(bomb_row - 1>= 0 && bomb_col >= 0){
-							if( bomb_arr[bomb_row - 1][bomb_col].is_b != 1){
-								count_b ++;
-							}
-						}
-						if(bomb_row - 1>= 0 && bomb_col + 1 < game_size){
-							if( bomb_arr[bomb_row - 1][bomb_col + 1].is_b != 1){
-								count_b ++;
-							}
-						}
-						if(bomb_row >= 0 && bomb_col - 1 >= 0){
-							if( bomb_arr[bomb_row][bomb_col - 1].is_b != 1){
-								count_b ++;
-							}
-						}
-						if(bomb_row >= 0 && bomb_col + 1 < game_size){
-							if( bomb_arr[bomb_row][bomb_col + 1].is_b != 1){
-								count_b ++;
-							}
-						}
-						if(bomb_row + 1 < game_size && bomb_col - 1 >= 0){
-							if( bomb_arr[bomb_row + 1][bomb_col - 1].is_b != 1){
-								count_b ++;
-							}
-						}
-						if(bomb_row + 1 < game_size && bomb_col >= 0){
-							if( bomb_arr[bomb_row + 1][bomb_col].is_b != 1){
-								count_b ++;
-							}
-						}
-						if(bomb_row+1 < game_size && bomb_col + 1 < game_size){
-							if( bomb_arr[bomb_row + 1][bomb_col + 1].is_b != 1){
-								count_b ++;
-							}
-						}
-						bomb_arr[bomb_row][bomb_col].num_b = count_b;
-						bomb_num[bomb_col * game_size + bomb_row] = count_b;
+					else{
+						$(elem).click(function(){
+							Game.bombState(elem);
+						})
 					}
+					$(elem).bind("contextmenu",function(e) {
+						Game.markState(elem);
+						e.preventDefault();
+					})
+				},
+
+				openState: function(elem){
+					var id = parseInt($(elem).attr("id").replace("bomb",""));
+					elem.innerHTML = Game.config.bomb_num[id];
+					Game.config.openBomb--;
+					Game.win();
+				},
+
+				markState: function(elem){
+					$(elem).attr("class","");
+					$(elem).attr("class","markBomb");
+					$(elem).unbind('click');
+					$(elem).bind("contextmenu",function(e) {
+						Game.initialState(elem);
+						e.preventDefault();
+					})
+					if ($(elem).attr("name") == "bombed"){
+						Game.config.guessBomb--;
+						Game.win();
+					}
+				},
+
+				bombState: function(elem){
+					elem.innerHTML = "X";
+					$('#statement').html("YOU FAIL");
+				},
+
+				win: function(){
+					if (Game.config.guessBomb + Game.config.openBomb == 0){
+						winNumber = winNumber + 1;
+						$('#statement').html("YOU WIN");
+						$('#win_number').html("win number: " + winNumber);
+					}
+				},
+
+				restart: function(){
+					$("#game").empty();
+					$("#statement").empty();
+					Game.init();
 				}
-				bomb_number.innerHTML = count + "BOMB!!!";
-			}
-
-			function not_bomb(id){
-				//window.alert("bombid: " + id + ", bomb_num[]:" +  bomb_num[id.charAt(4) - 1]);
-				var bomb = document.getElementById(id);
-				bomb.innerHTML = bomb_num[id.replace('bomb', '') - 1];
-				if (isBomb[id.replace('bomb', '')- 1] ==1){
-					leftNotCount --;
-				}
-				success();
 
 			}
 
-			function is_bomb(id){
-				var bomb = document.getElementById(id);
-				var s = document.getElementById("statement");
-				bomb.innerHTML = "X"
-				s.innerHTML = "You Fail";
-			}
-
-			function guess_bomb(id){
-				//window.alert("guess_bomb");
-				var bomb_id = document.getElementById(id);
-				bomb_id.setAttribute("style","background-color:red;padding:20px");
-				bomb_id.setAttribute("oncontextmenu","guess_not_bomb(id);return false;");
-				if (isBomb[id.replace('bomb', '') - 1] == 2){
-					leftCount --;
-				}
-				success();
-				return false;
-			}
-
-			function guess_not_bomb(id){
-				//window.alert("guess_not_bomb");
-				var bomb_id = document.getElementById(id);
-				bomb_id.removeAttribute("style");
-				bomb_id.setAttribute("oncontextmenu","guess_not_bomb(id)");
-				if (isBomb[id.charAt(4) - 1] == 2){
-					leftCount ++;
-				}
-				return false;
-			}
-
-			function success(){
-				if (leftCount + leftNotCount == 0){
-					var s = document.getElementById("statement");
-					var w = document.getElementById("win_number");
-					win_number ++;
-					w.innerHTML = "win number:" + win_number;
-					s.innerHTML = "You Win!!!";
-				}
-			}
-
-			
-
+			$( document ).ready( Game.init );
 		</script>
 	</body>
 </html>
