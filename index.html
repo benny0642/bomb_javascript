@@ -19,79 +19,73 @@
 	<body>
 		<script src="http://code.jquery.com/jquery.js"></script>
 
-		<div id="insertGame">
-			<div id="game">
-			</div>
+		<div id="game">
 		</div>
 		<div>
 			<form>
 				<input id="size" type="text" name="size" value="3">
-				<input type="button"  value="play game" onclick="Game.restart()">
+				<input type="button"  value="play game" onclick="Game.init()">
 			</form>
-			<p id="bomb_number"></p>
+			<p id="bombNumber"></p>
 			<p id="statement"></p>
-			<p id="win_number">win number: 0</p>
+			<p id="winNumber">win number: 0</p>
 		</div>
 		<script>
 			var winNumber = 0;
 			var Game ={
 				init: function(){
 					Game.config = {
-						tar: $('#game'),
+						play: $('#game'),
 						buttons: $('<button></button>'),
-						bomb_arr: new Array(),
-						bomb_num: new Array(),
-						guessBomb: 0,
-						openBomb: 0
+						bombArray: [],
+						realBombNumber: 0,
+						notBombNumber: 0
 					};
 					var gameSize = $("#size").val();
-
+					$("#game").empty();
+					$("#statement").empty();
 					Game.setup(gameSize);
 				},
 
 				setup: function(gameSize){
 					Game.createBombs(gameSize);
-					Game.assignId();
-					Game.assignBomb();
-					Game.countBomb(gameSize);
 					Game.bombInit();
+					Game.countBomb(gameSize);
 				},
 
 				createBombs: function(gameSize){
 					var scale = gameSize*gameSize;
-					Game.config.bomb_arr = new Array(scale);
-					Game.config.bomb_num = new Array(scale);
 					while(scale){
-						Game.config.tar.append("<button></button>");
+						Game.config.play.append("<button></button>");
 						if (scale % gameSize == 1){
-							Game.config.tar.append("<br />");
+							Game.config.play.append("<br />");
 						}
 						scale--;
 					};
 				},
 
-				assignId: function(){
-					$('button').attr('id', function(i){
-						return "bomb" + i;
-					});
-				},
 
-				assignBomb: function(){
+				bombInit: function(){
 					$('button').each(function(index){
-						var r = Math.floor(Math.random() * 10) % 3 + 1;  // r = 1 is  bomb; r = 2 is not bomb
+						var r = Math.floor(Math.random() * 10) % 4 + 1;  // r = 1 is  bomb; r = 2 is not bomb
 						var bomb = $(this);
 						if ( r == 1){
 							bomb.attr('name', "bombed");
-							Game.config.bomb_arr [index] = r;
-							Game.config.guessBomb++;
+							Game.config.bombArray [index] = r;
+							Game.config.realBombNumber++;
 						}
 						else{
 							bomb.attr('name', "not-bomb");
-							Game.config.bomb_arr[index] = r;
-							Game.config.openBomb++;
+							Game.config.bombArray[index] = r;
+							Game.config.notBombNumber++;
 						}
-					});
-					$("#bomb_number").html("Bomb Number:" + Game.config.guessBomb);
+						$(this).attr('id', "bomb" + index);
+						$(this).attr("class", "bomb");
+						$(this).data("bombState", "initialState");
+						$(this).on('click', this, Game.clickState);
+						$(this).on('contextmenu', this, Game.rightClickState);
+					})
+					$("#bombNumber").html("Bomb Number:" + Game.config.realBombNumber);
 				},
 
 				countBomb: function(gameSize){
@@ -99,114 +93,97 @@
 					$('button').each(function(index){
 						var countNum = 0;
 						if ((index  - gameSize) >= 0){
-							if (Game.config.bomb_arr[index  - gameSize] == 1){
+							if (Game.config.bombArray[index  - gameSize] == 1){
 								countNum++;
 							}
 						}
 						if ((index % gameSize) != 0){
-							if (Game.config.bomb_arr[index - 1] == 1){
+							if (Game.config.bombArray[index - 1] == 1){
 								countNum++;
 							}
 						}
 						if ((index % gameSize) != (gameSize - 1) ){
-							if(Game.config.bomb_arr[index + 1] == 1){
+							if(Game.config.bombArray[index + 1] == 1){
 								countNum++;
 							}
 						}
 						if ((index + gameSize) <= (gameSize*gameSize - 1)){
-							if (Game.config.bomb_arr[index + gameSize] == 1){
+							if (Game.config.bombArray[index + gameSize] == 1){
 								countNum++;
 							}
 						}
 						if ((index - gameSize) >= 0 && (index % gameSize ) != 0){
-							if(Game.config.bomb_arr[index -gameSize - 1] == 1){
+							if(Game.config.bombArray[index -gameSize - 1] == 1){
 								countNum++;
 							}
 						}
 						if ((index - gameSize) >= 0 && (index % gameSize) != (gameSize - 1)){
-							if(Game.config.bomb_arr[index - gameSize + 1] == 1){
+							if(Game.config.bombArray[index - gameSize + 1] == 1){
 								countNum++;
 							}
 						}
 						if ((index + gameSize) <= (gameSize*gameSize - 1) && (index % gameSize) != 0){
-							if (Game.config.bomb_arr[index + gameSize -1] == 1){
+							if (Game.config.bombArray[index + gameSize -1] == 1){
 								countNum++;
 							}
 						}
 						if ((index + gameSize) <= (gameSize*gameSize - 1) && (index % gameSize) != (gameSize - 1)){
-							if (Game.config.bomb_arr[index + gameSize +1] == 1){
+							if (Game.config.bombArray[index + gameSize +1] == 1){
 								countNum++;
 							}
 						}
-
-						Game.config.bomb_num[index] = countNum;
+						$(this).data('bombNumber',countNum);
 					})
 				},
 
-				bombInit: function(){
-					$('button').each(function(){
-						Game.initialState(this);
-					})
-				},
-
-				initialState: function(elem){
-					$(elem).attr("class","bomb");
-					if ($(elem).attr("name")== "not-bomb"){
-						$(elem).click(function(){
-							Game.openState(elem);
-						})
-					}
-					else{
-						$(elem).click(function(){
-							Game.bombState(elem);
-						})
-					}
-					$(elem).bind("contextmenu",function(e) {
-						Game.markState(elem);
-						e.preventDefault();
-					})
-				},
-
-				openState: function(elem){
-					var id = parseInt($(elem).attr("id").replace("bomb",""));
-					elem.innerHTML = Game.config.bomb_num[id];
-					Game.config.openBomb--;
-					Game.win();
-				},
-
-				markState: function(elem){
-					$(elem).attr("class","");
-					$(elem).attr("class","markBomb");
-					$(elem).unbind('click');
-					$(elem).bind("contextmenu",function(e) {
-						Game.initialState(elem);
-						e.preventDefault();
-					})
-					if ($(elem).attr("name") == "bombed"){
-						Game.config.guessBomb--;
-						Game.win();
+				clickState: function(elem){
+					elem = elem.data;
+					if ($(elem).data("bombState") == "initialState" && $(elem).attr("name") == "not-bomb"){
+						var id = parseInt($(elem).attr("id").replace("bomb",""));
+						elem.innerHTML = $(elem).data("bombNumber");
+						Game.config.notBombNumber--;
+						Game.checkWin();
+						$(elem).data("bombState", "openState");
+					}else if ($(elem).data("bombState") == "initialState" && $(elem).attr("name") == "bombed"){
+						$(elem).html("X");
+						$(elem).data("bombState", "openState");
+						$('#statement').html("YOU FAIL");
 					}
 				},
 
-				bombState: function(elem){
-					elem.innerHTML = "X";
-					$('#statement').html("YOU FAIL");
+				rightClickState: function(elem){
+					elem = elem.data;
+					if ($(elem).data("bombState") == "initialState" ){
+						$(elem).attr("class","");
+						$(elem).attr("class","markBomb");
+
+						if ($(elem).attr("name") == "bombed"){
+							Game.config.realBombNumber--;
+							Game.checkWin();
+						}
+
+						$(elem).data("bombState", "markState");
+					}else if ($(elem).data("bombState") == "markState"){
+						$(elem).attr("class","");
+						$(elem).attr("class","bomb");
+
+						if ($(elem).attr("name") == "bombed"){
+							Game.config.realBombNumber++;
+						}
+
+						$(elem).data("bombState", "initialState");
+					}
+					return false;
+
 				},
 
-				win: function(){
-					if (Game.config.guessBomb + Game.config.openBomb == 0){
+				checkWin: function(){
+					if (Game.config.realBombNumber + Game.config.notBombNumber == 0){
 						winNumber = winNumber + 1;
 						$('#statement').html("YOU WIN");
-						$('#win_number').html("win number: " + winNumber);
+						$('#winNumber').html("win number: " + winNumber);
 					}
-				},
-
-				restart: function(){
-					$("#game").empty();
-					$("#statement").empty();
-					Game.init();
 				}
-
 			}
 
 			$( document ).ready( Game.init );
