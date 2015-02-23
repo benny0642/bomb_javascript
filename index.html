@@ -18,175 +18,256 @@
 	</head>
 	<body>
 		<script src="http://code.jquery.com/jquery.js"></script>
+        		<script src="//cdnjs.cloudflare.com/ajax/libs/underscore.js/1.4.4/underscore-min.js"></script>
+        		<script src="//cdnjs.cloudflare.com/ajax/libs/backbone.js/1.0.0/backbone-min.js"></script>
 
 		<div id="game">
 		</div>
 		<div>
 			<form>
 				<input id="size" type="text" name="size" value="3">
-				<input type="button"  value="play game" onclick="Game.init()">
+				<!--<input type="button"  value="play game" onclick="Game.init()">-->
 			</form>
+			<button onclick='play();'>play</button>
 			<p id="bombNumber"></p>
 			<p id="statement"></p>
 			<p id="winNumber">win number: 0</p>
 		</div>
 		<script>
-			var winNumber = 0;
-			var Game ={
-				init: function(){
-					Game.config = {
-						play: $('#game'),
-						buttons: $('<button></button>'),
-						bombArray: [],
-						realBombNumber: 0,
-						notBombNumber: 0
-					};
-					var gameSize = $("#size").val();
-					$("#game").empty();
-					$("#statement").empty();
-					Game.setup(gameSize);
-				},
-
-				setup: function(gameSize){
-					Game.createBombs(gameSize);
-					Game.bombInit();
-					Game.countBomb(gameSize);
-				},
-
-				createBombs: function(gameSize){
-					var scale = gameSize*gameSize;
-					while(scale){
-						Game.config.play.append("<button></button>");
-						if (scale % gameSize == 1){
-							Game.config.play.append("<br />");
+			
+			var RunView = Backbone.View.extend({
+				ChildView: BombView,
+				render: function(){
+					$('#game').empty();
+					$('#statement').empty();
+					this.collection.each(function(model,index){
+						var ChildView = BombView;
+						var view = new ChildView({
+					                    model: model
+					            });
+						$('#game').append(view.el);
+						if ((index + 1) % parseInt(model.collection.scale)== 0){
+							$('#game').append('<br />');
 						}
-						scale--;
-					};
+					})
+				}
+			});
+			var BombView = Backbone.View.extend({
+				tagName: 'button',
+				className: 'bomb',
+				events:{
+					'click': 'handleClick',
+					'contextmenu': 'handleContextmenu'
 				},
 
+				render: function(){
+					$('#game').append(this.$el);
+				},
 
-				bombInit: function(){
-					$('button').each(function(index){
-						var r = Math.floor(Math.random() * 10) % 4 + 1;  // r = 1 is  bomb; r = 2 is not bomb
-						var bomb = $(this);
-						if ( r == 1){
-							bomb.attr('name', "bombed");
-							Game.config.bombArray [index] = r;
-							Game.config.realBombNumber++;
+				handleClick: function(){
+					if (this.model.get('name') == 'bomb'){
+						this.model.bombWarning();
+					}
+					if (this.model.get('name') == 'not-bomb'){
+						this.model.showNumber();
+						this.undelegateEvents();
+					}
+					this.markFunc();
+				},
+
+				handleContextmenu: function(e){
+					this.model.checkMark();
+					this.markFunc();
+					return false;
+				},
+
+				markFunc: function(){
+					if (this.model.get('bombStatus') == 'open'){
+						this.$el.html(this.model.get('number'));
+					}
+
+					if (this.model.get('bombStatus') == 'bye-bye'){
+						this.$el.html('X');
+					}
+
+					if (this.model.get('bombStatus') == 'initialState'){
+						this.$el.removeClass();
+						this.$el.addClass('bomb');
+					}
+
+					if (this.model.get('bombStatus') == 'mark'){
+						this.$el.removeClass();
+						this.$el.addClass('markBomb');
+					}
+
+				}
+				/*setup: function(BombModel){
+					$('#game').append(this.$el);
+				}*/
+			});
+			
+			var BombModel = Backbone.Model.extend({
+				defaults: {
+					name: '',
+					bombStatus: '',
+					number: '',
+				},
+
+				bombWarning: function(){
+					this.collection.win = 'lose';
+					this.set('bombStatus', 'bye-bye');
+				},
+
+				showNumber: function(){
+					this.collection.notBombNumber--;
+					this.set('bombStatus', 'open');
+				},
+
+				checkMark: function(){
+					if (this.get('bombStatus') == "initialState"){
+						if (this.get('name') == 'bomb'){
+							this.collection.bombNumber--;
 						}
 						else{
-							bomb.attr('name', "not-bomb");
-							Game.config.bombArray[index] = r;
-							Game.config.notBombNumber++;
+							this.collection.notBombNumber++;
 						}
-						$(this).attr('id', "bomb" + index);
-						$(this).attr("class", "bomb");
-						$(this).data("bombState", "initialState");
-						$(this).on('click', this, Game.clickState);
-						$(this).on('contextmenu', this, Game.rightClickState);
-					})
-					$("#bombNumber").html("Bomb Number:" + Game.config.realBombNumber);
+						this.set('bombStatus', 'mark');
+					}
+					else{
+						if(this.get('name') == 'not-bomb'){
+							this.collection.notBombNumber--;
+						}
+						else{
+							this.collection.bombNumber++;
+						}
+						this.set('bombStatus', 'initialState');
+						
+					}
+				}
+			});
+
+			var BombList = Backbone.Collection.extend({
+				model: BombModel,
+				defaults:{
+					bombNumber: '',
+					notBombNumber: '',
+					win: '',
+					scale: ''
 				},
 
-				countBomb: function(gameSize){
-					gameSize = parseInt(gameSize);
-					$('button').each(function(index){
+				initFunc: function(scale){
+					var countBomb = 0;
+					var countNotBomb = 0;
+					var gameSize = parseInt(scale);
+					this.scale = scale;
+					for (var i = 0; i < scale*scale ; i ++){
+						var model = new this.model;
+						var r = Math.floor(Math.random() * 10) % 4 + 1;  // r = 1 is  bomb; r = 2 is not bomb
+						if ( r == 1){
+							model.set('name','bomb');
+							countBomb++;
+						}
+						else{
+							model.set('name','not-bomb');
+							countNotBomb++;
+						}
+						model.set('bombStatus', 'initialState');
+						this.add(model);
+					}
+					this.bombNumber = countBomb;
+					this.notBombNumber = countNotBomb;
+					this.win = 'abc';
+					this.winNumber = 0;
+					for (var index = 0; index < scale*scale; index++){
 						var countNum = 0;
 						if ((index  - gameSize) >= 0){
-							if (Game.config.bombArray[index  - gameSize] == 1){
+							if (this.at(index  - gameSize).get('name') == 'bomb'){
 								countNum++;
 							}
 						}
 						if ((index % gameSize) != 0){
-							if (Game.config.bombArray[index - 1] == 1){
+							if (this.at(index - 1).get('name') == 'bomb'){
 								countNum++;
 							}
 						}
 						if ((index % gameSize) != (gameSize - 1) ){
-							if(Game.config.bombArray[index + 1] == 1){
+							if(this.at(index + 1).get('name') == 'bomb'){
 								countNum++;
 							}
 						}
 						if ((index + gameSize) <= (gameSize*gameSize - 1)){
-							if (Game.config.bombArray[index + gameSize] == 1){
+							if (this.at(index + gameSize).get('name') == 'bomb'){
 								countNum++;
 							}
 						}
 						if ((index - gameSize) >= 0 && (index % gameSize ) != 0){
-							if(Game.config.bombArray[index -gameSize - 1] == 1){
+							if(this.at(index -gameSize - 1).get('name') == 'bomb'){
 								countNum++;
 							}
 						}
 						if ((index - gameSize) >= 0 && (index % gameSize) != (gameSize - 1)){
-							if(Game.config.bombArray[index - gameSize + 1] == 1){
+							if(this.at(index - gameSize + 1).get('name') == 'bomb'){
 								countNum++;
 							}
 						}
 						if ((index + gameSize) <= (gameSize*gameSize - 1) && (index % gameSize) != 0){
-							if (Game.config.bombArray[index + gameSize -1] == 1){
+							if (this.at(index + gameSize -1).get('name') == 'bomb'){
 								countNum++;
 							}
 						}
 						if ((index + gameSize) <= (gameSize*gameSize - 1) && (index % gameSize) != (gameSize - 1)){
-							if (Game.config.bombArray[index + gameSize +1] == 1){
+							if (this.at(index + gameSize +1).get('name') == 'bomb'){
 								countNum++;
 							}
 						}
-						$(this).data('bombNumber',countNum);
-					})
-				},
-
-				clickState: function(elem){
-					elem = elem.data;
-					if ($(elem).data("bombState") == "initialState" && $(elem).attr("name") == "not-bomb"){
-						var id = parseInt($(elem).attr("id").replace("bomb",""));
-						elem.innerHTML = $(elem).data("bombNumber");
-						Game.config.notBombNumber--;
-						Game.checkWin();
-						$(elem).data("bombState", "openState");
-					}else if ($(elem).data("bombState") == "initialState" && $(elem).attr("name") == "bombed"){
-						$(elem).html("X");
-						$(elem).data("bombState", "openState");
-						$('#statement').html("YOU FAIL");
+						this.at(index).set('number', countNum);
 					}
+				} 
+			});
+
+			var bombMessage = Backbone.View.extend({
+				initialize: function(){
+					this.listenTo(this.collection, "change", this.render);
 				},
 
-				rightClickState: function(elem){
-					elem = elem.data;
-					if ($(elem).data("bombState") == "initialState" ){
-						$(elem).attr("class","");
-						$(elem).attr("class","markBomb");
-
-						if ($(elem).attr("name") == "bombed"){
-							Game.config.realBombNumber--;
-							Game.checkWin();
-						}
-
-						$(elem).data("bombState", "markState");
-					}else if ($(elem).data("bombState") == "markState"){
-						$(elem).attr("class","");
-						$(elem).attr("class","bomb");
-
-						if ($(elem).attr("name") == "bombed"){
-							Game.config.realBombNumber++;
-						}
-
-						$(elem).data("bombState", "initialState");
+				render: function(){
+					if(this.collection.bombNumber + this.collection.notBombNumber == 0){
+						this.model.winNumber++;
+						$('#winNumber').html('win number: ' + this.model.winNumber);
+						$('#statement').html("You win");
 					}
-					return false;
 
-				},
-
-				checkWin: function(){
-					if (Game.config.realBombNumber + Game.config.notBombNumber == 0){
-						winNumber = winNumber + 1;
-						$('#statement').html("YOU WIN");
-						$('#winNumber').html("win number: " + winNumber);
+					if(this.collection.win == 'lose'){
+						$('#statement').html("You Lose");
 					}
 				}
-			}
+			});
 
-			$( document ).ready( Game.init );
+			var WinningNumber = Backbone.View.extend({
+				render: function(){
+					$('#winNumber').empty();
+					$('#winNumber').html('win number: ' + this.model.winNumber);
+				}
+			});
+
+			var WinNumberModel = Backbone.View.extend({
+				defaults: {
+					winNumber: ''
+				},
+			});
+
+			function play(){
+				var size = $('#size').val();
+				var bombList = new BombList();
+
+				bombList.initFunc(size);
+				var runView = new RunView({collection: bombList});
+				var Message = new bombMessage({collection: bombList,
+					model: winNumberModel});
+				runView.render();
+			};
+			var winNumberModel = new WinNumberModel();
+			winNumberModel.winNumber = 0;
 		</script>
 	</body>
 </html>
